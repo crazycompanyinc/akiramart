@@ -1,508 +1,423 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { useEffect } from "react";
 
-/* ═══════════════════════════════════════════════════════════════
-   PORTAL CANVAS — Particulas que forman un portal dimensional
-   ═══════════════════════════════════════════════════════════════ */
-function PortalCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: 0, y: 0 });
-  const animRef = useRef(0);
+/* ═══════════════════════════════════════════════════════════
+   PIXEL SPRITE SVGs — Each character as inline SVG
+   No canvas, no useEffect needed. Pure SVG pixel art.
+   ═══════════════════════════════════════════════════════════ */
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let w = canvas.width = canvas.offsetWidth;
-    let h = canvas.height = canvas.offsetHeight;
+function PixelSprite({ type, size = 120 }: { type: string; size?: number }) {
+  const s = size / 16; // pixel unit size
 
-    const particles = [];
-    const colors = ["#ff2d78", "#00e5ff", "#ffd700", "#ff2d78", "#00e5ff"];
-    for (let i = 0; i < 120; i++) {
-      particles.push({
-        angle: Math.random() * Math.PI * 2,
-        radius: 80 + Math.random() * 200,
-        speed: 0.002 + Math.random() * 0.008,
-        size: 1 + Math.random() * 2.5,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        alpha: 0.2 + Math.random() * 0.6,
-        orbitOffset: Math.random() * Math.PI * 2,
-      });
-    }
-
-    const handleMouse = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
-    canvas.addEventListener("mousemove", handleMouse);
-    const resize = () => { w = canvas.width = canvas.offsetWidth; h = canvas.height = canvas.offsetHeight; };
-    window.addEventListener("resize", resize);
-
-    const animate = () => {
-      ctx.clearRect(0, 0, w, h);
-      const cx = w / 2, cy = h / 2;
-      const mx = mouseRef.current.x || cx, my = mouseRef.current.y || cy;
-      const time = Date.now() * 0.001;
-
-      for (let r = 0; r < 3; r++) {
-        const ringRadius = 100 + r * 60;
-        const ringAlpha = 0.04 - r * 0.01;
-        ctx.beginPath(); ctx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(255,45,120," + ringAlpha + ")"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx, cy, ringRadius + 20, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(0,229,255," + (ringAlpha * 0.7) + ")"; ctx.stroke();
-      }
-
-      for (const p of particles) {
-        p.angle += p.speed;
-        const wobble = Math.sin(time * 2 + p.orbitOffset) * 15;
-        const r = p.radius + wobble;
-        const x = cx + Math.cos(p.angle) * r;
-        const y = cy + Math.sin(p.angle) * r;
-        const dx = mx - x, dy = my - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const ax = dist < 200 ? x + dx * 0.02 : x;
-        const ay = dist < 200 ? y + dy * 0.02 : y;
-        const fa = p.alpha * (0.7 + Math.sin(time * 3 + p.orbitOffset) * 0.3);
-        ctx.beginPath(); ctx.arc(ax, ay, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = p.color; ctx.globalAlpha = fa; ctx.fill();
-        ctx.beginPath(); ctx.arc(ax, ay, p.size * 3, 0, Math.PI * 2);
-        const grad = ctx.createRadialGradient(ax, ay, 0, ax, ay, p.size * 3);
-        grad.addColorStop(0, p.color); grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad; ctx.globalAlpha = fa * 0.3; ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animate();
-    return () => { cancelAnimationFrame(animRef.current); canvas.removeEventListener("mousemove", handleMouse); window.removeEventListener("resize", resize); };
-  }, []);
-
-  return <canvas ref={canvasRef} className="portal-canvas" />;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   CURSOR TRAIL
-   ═══════════════════════════════════════════════════════════════ */
-function CursorTrail() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef(0);
-  const pointsRef = useRef([]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let w = canvas.width = window.innerWidth;
-    let h = canvas.height = window.innerHeight;
-
-    const handleMouse = (e) => {
-      const colors = ["#ff2d78", "#00e5ff", "#ffd700"];
-      pointsRef.current.push({ x: e.clientX, y: e.clientY, age: 0, color: colors[Math.floor(Math.random() * colors.length)] });
-      if (pointsRef.current.length > 50) pointsRef.current.shift();
-    };
-    const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
-    window.addEventListener("mousemove", handleMouse);
-    window.addEventListener("resize", resize);
-
-    const animate = () => {
-      ctx.clearRect(0, 0, w, h);
-      pointsRef.current = pointsRef.current.filter(p => p.age < 30);
-      for (const p of pointsRef.current) {
-        p.age++;
-        const alpha = 1 - p.age / 30;
-        const size = 2 * (1 - p.age / 30);
-        ctx.beginPath(); ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-        ctx.fillStyle = p.color; ctx.globalAlpha = alpha * 0.6; ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animate();
-    return () => { cancelAnimationFrame(animRef.current); window.removeEventListener("mousemove", handleMouse); window.removeEventListener("resize", resize); };
-  }, []);
-
-  return <canvas ref={canvasRef} id="cursor-trail" />;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   POWER LEVEL
-   ═══════════════════════════════════════════════════════════════ */
-function PowerLevel() {
-  const [power, setPower] = useState(0);
-  const [label, setLabel] = useState("???");
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const pct = Math.min(scrollTop / docHeight, 1);
-      setPower(pct * 100);
-      if (pct < 0.2) setLabel("Novato");
-      else if (pct < 0.4) setLabel("Fan");
-      else if (pct < 0.6) setLabel("Otaku");
-      else if (pct < 0.8) setLabel("Weeb");
-      else setLabel("Dios del anime");
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  return (
-    <div className="power-level">
-      <div className="power-bar"><div className="power-fill" style={{ width: power + "%" }} /></div>
-      <span className="power-label">Nivel de otaku: <span>{label}</span></span>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   NAVBAR
-   ═══════════════════════════════════════════════════════════════ */
-function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  useEffect(() => {
-    const h = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", h, { passive: true });
-    return () => window.removeEventListener("scroll", h);
-  }, []);
-
-  return (
-    <nav className={"navbar " + (scrolled ? "scrolled" : "")}>
-      <div className="nav-inner">
-        <a href="#inicio" className="nav-brand">
-          <span className="brand-icon">AK</span>
-          <span className="brand-text">AKIRAMART</span>
-        </a>
-        <div className={"nav-links " + (menuOpen ? "open" : "")}>
-          <a href="#mercado" onClick={() => setMenuOpen(false)}>Mercado</a>
-          <a href="#colecciones" onClick={() => setMenuOpen(false)}>Arcos</a>
-          <a href="#testimonios" onClick={() => setMenuOpen(false)}>Testimonios</a>
-          <a href="#mision" className="nav-cta" onClick={() => setMenuOpen(false)}>Entrar al mercado</a>
-        </div>
-        <button className={"nav-toggle " + (menuOpen ? "open" : "")} onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
-          <span /><span /><span />
-        </button>
-      </div>
-    </nav>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   HERO
-   ═══════════════════════════════════════════════════════════════ */
-function Hero() {
-  return (
-    <section className="hero" id="inicio">
-      <PortalCanvas />
-      <div className="scanlines" />
-      <div className="hero-content">
-        <p className="caption hero-caption">Tienda Oficial - Envio en 24h - +10.000 productos</p>
-        <h1 className="display">
-          <span className="line">El otro mundo</span>
-          <span className="line accent">es este mundo</span>
-        </h1>
-        <p className="hero-desc">Figuras que cobran vida. Mangas que te transportan. Merch que te define. Todo lo que necesitas para vivir en el lado correcto de la realidad.</p>
-        <div className="hero-cta">
-          <a href="#mercado" className="cta-primary">
-            <span>Entrar al mercado</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </a>
-          <a href="#colecciones" className="cta-secondary"><span>Ver colecciones</span></a>
-        </div>
-      </div>
-      <PowerLevel />
-    </section>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   PRODUCT DATA WITH REAL IMAGES
-   ═══════════════════════════════════════════════════════════════ */
-const PRODUCTOS = [
-  { id: 1, anime: "Demon Slayer", nombre: "Tanjiro Kamado - Hashira Form", precio: "89.99", categoria: "figuras", badges: ["HOT","Quedan 3"], stock: 3, img: "https://m.media-amazon.com/images/I/7K3xYq0hHL._AC_SL1500_.jpg" },
-  { id: 2, anime: "One Piece", nombre: "Monkey D. Luffy - Gear 5", precio: "129.99", categoria: "figuras", badges: ["HOT"], stock: 12, img: "https://m.media-amazon.com/images/I/61+O1k3LqSL._AC_SL1000_.jpg" },
-  { id: 3, anime: "Jujutsu Kaisen", nombre: "Gojo Satoru - Six Eyes", precio: "149.99", categoria: "figuras", badges: ["NUEVO"], stock: 8, img: "https://m.media-amazon.com/images/I/61XH7ppn4ZL._AC_SL1000_.jpg" },
-  { id: 4, anime: "Naruto", nombre: "Manga Box Set - Vol. 1-27", precio: "199.99", categoria: "mangas", badges: ["OFERTA"], stock: 5, img: "https://m.media-amazon.com/images/I/81YLm4k4jGL._AC_SL1500_.jpg" },
-  { id: 5, anime: "Dragon Ball", nombre: "Goku Ultra Instinct - SH Figuarts", precio: "79.99", categoria: "figuras", badges: [], stock: 20, img: "https://m.media-amazon.com/images/I/61V+Kq0kLhL._AC_SL1000_.jpg" },
-  { id: 6, anime: "Attack on Titan", nombre: "Survey Corps - Chaqueta Oficial", precio: "59.99", categoria: "merch", badges: ["HOT"], stock: 15, img: "https://m.media-amazon.com/images/I/61LQ3Kj6qVL._AC_SL1000_.jpg" },
-  { id: 7, anime: "My Hero Academia", nombre: "Deku - Hero Costume Ver.", precio: "69.99", categoria: "figuras", badges: [], stock: 10, img: "https://m.media-amazon.com/images/I/61+1B+Mz4aL._AC_SL1000_.jpg" },
-  { id: 8, anime: "Chainsaw Man", nombre: "Denji - Chainsaw Form", precio: "99.99", categoria: "figuras", badges: ["NUEVO","Quedan 2"], stock: 2, img: "https://m.media-amazon.com/images/I/71d+K1X-KLL._AC_SL1500_.jpg" },
-  { id: 9, anime: "One Piece", nombre: "Manga Box Set - Vol. 1-36", precio: "299.99", categoria: "mangas", badges: ["OFERTA"], stock: 3, img: "https://m.media-amazon.com/images/I/81YLm4k4jGL._AC_SL1500_.jpg" },
-  { id: 10, anime: "Studio Ghibli", nombre: "Totoro - Peluche Premium 40cm", precio: "34.99", categoria: "merch", badges: [], stock: 25, img: "https://m.media-amazon.com/images/I/71IyK8KQjIL._AC_SL1500_.jpg" },
-  { id: 11, anime: "Spy x Family", nombre: "Anya Forger - Nendoroid", precio: "49.99", categoria: "figuras", badges: ["HOT"], stock: 18, img: "https://m.media-amazon.com/images/I/61+0B+Kz4aL._AC_SL1000_.jpg" },
-  { id: 12, anime: "Demon Slayer", nombre: "Nezuko - Demon Form Ver.", precio: "109.99", categoria: "figuras", badges: ["NUEVO"], stock: 7, img: "https://m.media-amazon.com/images/I/71d+K1X-KLL._AC_SL1500_.jpg" },
-];
-
-/* ═══════════════════════════════════════════════════════════════
-   MERCADO
-   ═══════════════════════════════════════════════════════════════ */
-function Mercado() {
-  const [filtro, setFiltro] = useState("todos");
-  const [addedIds, setAddedIds] = useState(new Set());
-
-  const filtered = filtro === "todos" ? PRODUCTOS : PRODUCTOS.filter(p => p.categoria === filtro || (filtro === "ofertas" && p.badges.includes("OFERTA")));
-
-  const handleAdd = (id) => {
-    setAddedIds(prev => new Set(prev).add(id));
-    setTimeout(() => { setAddedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); }, 2000);
+  const sprites: Record<string, { bg: string; pixels: [number, number, number, string][] }> = {
+    tanjiro: {
+      bg: "#2a2420",
+      pixels: [
+        // Hair top
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,0,"#1a1a1a"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,1,"#1a1a1a"] as [number,number,string]),
+        ...[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(x => [x,2,"#1a1a1a"] as [number,number,string]),
+        // Hair sides
+        ...[3,4,5,6,7,8,9,10].map(y => [2,y,"#1a1a1a"] as [number,number,string]),
+        ...[3,4,5,6,7,8,9,10].map(y => [13,y,"#1a1a1a"] as [number,number,string]),
+        // Red tips
+        [1,3,"#8b1a1a"],[14,3,"#8b1a1a"],[1,4,"#8b1a1a"],[14,4,"#8b1a1a"],
+        // Face
+        ...[3,4,5,6,7,8,9,10,11,12].flatMap(x => 
+          [3,4,5,6,7].map(y => [x,y,"#f0d0b0"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Eyes
+        [5,4,"#ffffff"],[6,4,"#ffffff"],[9,4,"#ffffff"],[10,4,"#ffffff"],
+        [5,5,"#2a1a0a"],[6,5,"#2a1a0a"],[9,5,"#2a1a0a"],[10,5,"#2a1a0a"],
+        // Eyebrows
+        [4,3,"#1a1a1a"],[5,3,"#1a1a1a"],[6,3,"#1a1a1a"],
+        [9,3,"#1a1a1a"],[10,3,"#1a1a1a"],[11,3,"#1a1a1a"],
+        // Nose
+        [7,6,"#d8b898"],[8,6,"#d8b898"],
+        // Mouth
+        [6,7,"#c08070"],[7,7,"#c08070"],[8,7,"#c08070"],[9,7,"#c08070"],
+        // Haori body (green-black check)
+        ...[8,9,10,11,12,13,14,15,16,17,18,19].flatMap(y =>
+          [3,4,5,6,7,8,9,10,11,12].map(x => [x,y,(x+y)%2===0?"#2a4a2a":"#1a1a1a"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Arms
+        ...[9,10,11,12,13,14,15,16,17].map(y => [1,y,"#2a4a2a"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [2,y,"#1a1a1a"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [13,y,"#1a1a1a"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [14,y,"#2a4a2a"] as [number,number,string]),
+        // Hands
+        [1,18,"#f0d0b0"],[2,18,"#f0d0b0"],[13,18,"#f0d0b0"],[14,18,"#f0d0b0"],
+      ]
+    },
+    nezuko: {
+      bg: "#2a2420",
+      pixels: [
+        // Hair
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,0,"#1a0a0a"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,1,"#1a0a0a"] as [number,number,string]),
+        ...[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(x => [x,2,"#1a0a0a"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10,11,12].map(y => [1,y,"#1a0a0a"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10,11,12].map(y => [2,y,"#1a0a0a"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10,11,12].map(y => [13,y,"#1a0a0a"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10,11,12].map(y => [14,y,"#1a0a0a"] as [number,number,string]),
+        // Bangs
+        ...[3,4,5,6,7,8,9,10,11,12].map(x => [x,3,"#1a0a0a"] as [number,number,string]),
+        [3,4,"#1a0a0a"],[4,4,"#1a0a0a"],[11,4,"#1a0a0a"],[12,4,"#1a0a0a"],
+        // Face
+        ...[3,4,5,6,7,8,9,10,11,12].flatMap(x =>
+          [3,4,5,6,7].map(y => [x,y,"#f0d0b0"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Eyes
+        [5,4,"#ffffff"],[6,4,"#ffffff"],[9,4,"#ffffff"],[10,4,"#ffffff"],
+        [5,5,"#6a2060"],[6,5,"#6a2060"],[9,5,"#6a2060"],[10,5,"#6a2060"],
+        // Blush
+        [4,6,"#ffb0b0"],[11,6,"#ffb0b0"],
+        // Mouth
+        [7,7,"#c07080"],[8,7,"#c07080"],
+        // Bamboo
+        [7,8,"#4a8a3a"],[8,8,"#4a8a3a"],
+        // Kimono
+        ...[8,9,10,11,12,13,14,15,16,17,18,19].flatMap(y =>
+          [3,4,5,6,7,8,9,10,11,12].map(x => [x,y,(x+y)%2===0?"#d44060":"#b03050"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Obi
+        ...[3,4,5,6,7,8,9,10,11,12].map(x => [x,12,"#ffe0f0"] as [number,number,string]),
+        ...[3,4,5,6,7,8,9,10,11,12].map(x => [x,13,"#ffe0f0"] as [number,number,string]),
+        // Arms
+        ...[9,10,11,12,13,14,15,16,17].map(y => [1,y,"#d44060"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [2,y,"#b03050"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [13,y,"#b03050"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [14,y,"#d44060"] as [number,number,string]),
+        [1,18,"#f0d0b0"],[2,18,"#f0d0b0"],[13,18,"#f0d0b0"],[14,18,"#f0d0b0"],
+      ]
+    },
+    goku: {
+      bg: "#2a2420",
+      pixels: [
+        // SSJ Hair (gold, spiky)
+        ...[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(x => [x,0,"#ffaa00"] as [number,number,string]),
+        ...[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(x => [x,1,"#ffaa00"] as [number,number,string]),
+        ...[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(x => [x,2,"#ffaa00"] as [number,number,string]),
+        [0,3,"#ffaa00"],[15,3,"#ffaa00"],
+        // Face
+        ...[3,4,5,6,7,8,9,10,11,12].flatMap(x =>
+          [3,4,5,6,7].map(y => [x,y,"#f0d0b0"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Eyes
+        [5,4,"#ffffff"],[6,4,"#ffffff"],[9,4,"#ffffff"],[10,4,"#ffffff"],
+        [5,5,"#1a1a1a"],[6,5,"#1a1a1a"],[9,5,"#1a1a1a"],[10,5,"#1a1a1a"],
+        // Angry eyebrows
+        [4,3,"#1a1a1a"],[5,3,"#1a1a1a"],[6,3,"#1a1a1a"],
+        [9,3,"#1a1a1a"],[10,3,"#1a1a1a"],[11,3,"#1a1a1a"],
+        // Nose & mouth
+        [7,6,"#d8b898"],[8,6,"#d8b898"],
+        [6,7,"#a07060"],[7,7,"#a07060"],[8,7,"#a07060"],[9,7,"#a07060"],
+        // Gi body (orange)
+        ...[8,9,10,11,12,13,14,15,16,17,18,19].flatMap(y =>
+          [3,4,5,6,7,8,9,10,11,12].map(x => [x,y,(x+y)%2===0?"#e06020":"#c05010"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Belt
+        ...[3,4,5,6,7,8,9,10,11,12].map(x => [x,13,"#2040a0"] as [number,number,string]),
+        ...[3,4,5,6,7,8,9,10,11,12].map(x => [x,14,"#2040a0"] as [number,number,string]),
+        // Arms
+        ...[9,10,11,12,13,14,15,16,17].flatMap(y =>
+          [0,1,2].map(x => [x,y,x%2===0?"#e06020":"#c05010"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        ...[9,10,11,12,13,14,15,16,17].flatMap(y =>
+          [13,14,15].map(x => [x,y,x%2===0?"#c05010":"#e06020"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        [0,18,"#f0d0b0"],[1,18,"#f0d0b0"],[14,18,"#f0d0b0"],[15,18,"#f0d0b0"],
+      ]
+    },
+    luffy: {
+      bg: "#2a2420",
+      pixels: [
+        // Straw hat
+        ...[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(x => [x,0,"#e8d080"] as [number,number,string]),
+        ...[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(x => [x,1,"#e8d080"] as [number,number,string]),
+        // Face
+        ...[3,4,5,6,7,8,9,10,11,12].flatMap(x =>
+          [2,3,4,5,6,7].map(y => [x,y,"#f0d0b0"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Hair under hat
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,2,"#1a1a1a"] as [number,number,string]),
+        ...[3,4,5,6].map(y => [2,y,"#1a1a1a"] as [number,number,string]),
+        ...[3,4,5,6].map(y => [13,y,"#1a1a1a"] as [number,number,string]),
+        // Eyes
+        [5,4,"#ffffff"],[6,4,"#ffffff"],[9,4,"#ffffff"],[10,4,"#ffffff"],
+        [5,5,"#1a1a1a"],[6,5,"#1a1a1a"],[9,5,"#1a1a1a"],[10,5,"#1a1a1a"],
+        // Scar
+        [10,6,"#c08070"],[11,6,"#c08070"],
+        // Big smile
+        [5,7,"#804030"],[6,7,"#804030"],[7,7,"#804030"],[8,7,"#804030"],[9,7,"#804030"],[10,7,"#804030"],
+        // Vest (red)
+        ...[8,9,10,11,12,13,14].flatMap(y =>
+          [3,4,5,6,7,8,9,10,11,12].map(x => [x,y,"#c02020"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Skin showing (chest)
+        [6,9,"#f0d0b0"],[7,9,"#f0d0b0"],[8,9,"#f0d0b0"],[9,9,"#f0d0b0"],
+        [6,10,"#f0d0b0"],[7,10,"#f0d0b0"],[8,10,"#f0d0b0"],[9,10,"#f0d0b0"],
+        // Shorts (blue)
+        ...[15,16,17,18,19].flatMap(y =>
+          [3,4,5,6,7,8,9,10,11,12].map(x => [x,y,"#2040a0"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Arms (skin)
+        ...[9,10,11,12,13,14,15,16,17].map(y => [1,y,"#f0d0b0"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [2,y,"#f0d0b0"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [13,y,"#f0d0b0"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [14,y,"#f0d0b0"] as [number,number,string]),
+        // Legs
+        [5,18,"#f0d0b0"],[6,18,"#f0d0b0"],[9,18,"#f0d0b0"],[10,18,"#f0d0b0"],
+        [5,19,"#f0d0b0"],[6,19,"#f0d0b0"],[9,19,"#f0d0b0"],[10,19,"#f0d0b0"],
+      ]
+    },
+    sakura: {
+      bg: "#2a2420",
+      pixels: [
+        // Hair (pink)
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,0,"#e08090"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,1,"#e08090"] as [number,number,string]),
+        ...[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(x => [x,2,"#e08090"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10].map(y => [1,y,"#c06070"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10].map(y => [2,y,"#e08090"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10].map(y => [13,y,"#e08090"] as [number,number,string]),
+        ...[2,3,4,5,6,7,8,9,10].map(y => [14,y,"#c06070"] as [number,number,string]),
+        // Bangs
+        ...[3,4,5,6,7,8,9,10,11,12].map(x => [x,3,"#e08090"] as [number,number,string]),
+        [3,4,"#e08090"],[4,4,"#e08090"],[11,4,"#e08090"],[12,4,"#e08090"],
+        // Headband
+        ...[2,3,4,5,6,7,8,9,10,11,12,13].map(x => [x,3,"#c02020"] as [number,number,string]),
+        [7,3,"#c0c0c0"],[8,3,"#c0c0c0"],
+        // Face
+        ...[3,4,5,6,7,8,9,10,11,12].flatMap(x =>
+          [3,4,5,6,7].map(y => [x,y,"#f0d0b0"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Eyes (big green)
+        [5,4,"#ffffff"],[6,4,"#ffffff"],[7,4,"#ffffff"],
+        [9,4,"#ffffff"],[10,4,"#ffffff"],[11,4,"#ffffff"],
+        [5,5,"#40a060"],[6,5,"#40a060"],[10,5,"#40a060"],[11,5,"#40a060"],
+        // Blush
+        [4,6,"#ffb0b0"],[11,6,"#ffb0b0"],
+        // Mouth
+        [7,7,"#c07080"],[8,7,"#c07080"],
+        // Dress (pink)
+        ...[8,9,10,11,12,13,14,15,16,17,18,19].flatMap(y =>
+          [3,4,5,6,7,8,9,10,11,12].map(x => [x,y,(x+y)%2===0?"#ff6080":"#e04060"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Arms
+        ...[9,10,11,12,13,14,15,16,17].map(y => [1,y,"#ff6080"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [2,y,"#e04060"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [13,y,"#e04060"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [14,y,"#ff6080"] as [number,number,string]),
+        [1,18,"#f0d0b0"],[2,18,"#f0d0b0"],[13,18,"#f0d0b0"],[14,18,"#f0d0b0"],
+      ]
+    },
+    rem: {
+      bg: "#2a2420",
+      pixels: [
+        // Hair (blue bob)
+        ...[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(x => [x,0,"#4090d0"] as [number,number,string]),
+        ...[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(x => [x,1,"#4090d0"] as [number,number,string]),
+        ...[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(x => [x,2,"#4090d0"] as [number,number,string]),
+        ...[3,4,5,6,7,8].map(y => [0,y,"#3070b0"] as [number,number,string]),
+        ...[3,4,5,6,7,8].map(y => [1,y,"#4090d0"] as [number,number,string]),
+        ...[3,4,5,6,7,8].map(y => [14,y,"#4090d0"] as [number,number,string]),
+        ...[3,4,5,6,7,8].map(y => [15,y,"#3070b0"] as [number,number,string]),
+        // Bangs
+        ...[3,4,5,6,7,8,9,10,11,12].map(x => [x,3,"#4090d0"] as [number,number,string]),
+        [3,4,"#4090d0"],[4,4,"#4090d0"],[11,4,"#4090d0"],[12,4,"#4090d0"],
+        // Ribbon
+        [1,1,"#ff4060"],[2,1,"#ff4060"],[1,2,"#ff4060"],
+        // Face
+        ...[3,4,5,6,7,8,9,10,11,12].flatMap(x =>
+          [3,4,5,6,7].map(y => [x,y,"#f0d8c0"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Eyes
+        [5,4,"#ffffff"],[6,4,"#ffffff"],[9,4,"#ffffff"],[10,4,"#ffffff"],
+        [5,5,"#d04060"],[6,5,"#d04060"],[9,5,"#d04060"],[10,5,"#d04060"],
+        // Mouth
+        [7,7,"#c08090"],[8,7,"#c08090"],
+        // Maid dress (black)
+        ...[8,9,10,11,12,13,14,15,16,17,18,19].flatMap(y =>
+          [3,4,5,6,7,8,9,10,11,12].map(x => [x,y,(x+y)%2===0?"#202030":"#303040"] as [number,number,string])
+        ).filter((v,i,a) => a.findIndex(t => t[0]===v[0] && t[1]===v[1]) === i),
+        // Apron (white)
+        ...[5,6,7,8,9,10].map(x => [x,10,"#f0f0f0"] as [number,number,string]),
+        ...[5,6,7,8,9,10].map(x => [x,11,"#f0f0f0"] as [number,number,string]),
+        ...[5,6,7,8,9,10].map(x => [x,12,"#f0f0f0"] as [number,number,string]),
+        ...[5,6,7,8,9,10].map(x => [x,13,"#f0f0f0"] as [number,number,string]),
+        // Arms
+        ...[9,10,11,12,13,14,15,16,17].map(y => [1,y,"#202030"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [2,y,"#303040"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [13,y,"#303040"] as [number,number,string]),
+        ...[9,10,11,12,13,14,15,16,17].map(y => [14,y,"#202030"] as [number,number,string]),
+        [1,18,"#f0d8c0"],[2,18,"#f0d8c0"],[13,18,"#f0d8c0"],[14,18,"#f0d8c0"],
+      ]
+    },
   };
 
+  const sprite = sprites[type] || sprites.tanjiro;
+  const viewBox = `0 0 ${16 * s} ${20 * s}`;
+
   return (
-    <section className="mercado" id="mercado">
-      <div className="section-header scroll-reveal">
-        <p className="caption">Capitulo 2 - El Mercado</p>
-        <h2 className="heading">Cada puesto,<br />un mundo diferente</h2>
-        <p className="section-desc">Figuras que cobran vida. Mangas que te transportan. Merch que te define.</p>
-      </div>
-
-      <div className="filtros">
-        {[
-          { key: "todos", icon: "*", label: "Todos" },
-          { key: "figuras", icon: "F", label: "Figuras" },
-          { key: "mangas", icon: "M", label: "Mangas" },
-          { key: "merch", icon: "m", label: "Merch" },
-          { key: "ofertas", icon: "!", label: "Ofertas", badge: 12 },
-        ].map(f => (
-          <button key={f.key} className={"filtro " + (filtro === f.key ? "active" : "")} onClick={() => setFiltro(f.key)}>
-            <span className="filtro-icon">{f.icon}</span>
-            <span>{f.label}</span>
-            {"badge" in f && f.badge && <span className="filtro-badge">{f.badge}</span>}
-          </button>
-        ))}
-      </div>
-
-      <div className="productos-grid">
-        {filtered.map(producto => (
-          <article key={producto.id} className="producto">
-            <div className="producto-visual">
-              <Image src={producto.img} alt={producto.nombre} fill style={{ objectFit: "cover" }} className="producto-img" />
-              <div className="producto-overlay" />
-              {producto.badges.length > 0 && (
-                <div className="producto-badges">
-                  {producto.badges.map(b => (
-                    <span key={b} className={"badge " + (b.startsWith("Quedan") ? "stock-low" : b === "HOT" ? "hot" : "")}>{b}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="producto-info">
-              <span className="producto-anime">{producto.anime}</span>
-              <h3 className="producto-nombre">{producto.nombre}</h3>
-              <div className="producto-meta">
-                <span className="price">{producto.precio} EUR</span>
-                <span className={"stock " + (producto.stock <= 3 ? "low" : "")}>Stock: {producto.stock} uds</span>
-              </div>
-              <button className={"producto-cta " + (addedIds.has(producto.id) ? "added" : "")} onClick={() => handleAdd(producto.id)}>
-                {addedIds.has(producto.id) ? "Anadido!" : "Anadir al carrito"}
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
+    <svg
+      width={size}
+      height={size * 1.25}
+      viewBox={viewBox}
+      style={{ imageRendering: "pixelated" }}
+      aria-label={type}
+    >
+      <rect width={16 * s} height={20 * s} fill={sprite.bg} />
+      {sprite.pixels.map(([x, y, color], i) => (
+        <rect key={i} x={x * s} y={y * s} width={s} height={s} fill={color} />
+      ))}
+    </svg>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   COLECCIONES
-   ═══════════════════════════════════════════════════════════════ */
-const ARCOS = [
-  { key: "shonen", tipo: "Arco de Poder", nombre: "Shonen", desc: "One Piece - Naruto - Dragon Ball - Jujutsu Kaisen", count: "2.847", img: "https://m.media-amazon.com/images/I/81YLm4k4jGL._AC_SL1500_.jpg" },
-  { key: "seinen", tipo: "Arco de Oscuridad", nombre: "Seinen", desc: "Berserk - Tokyo Ghoul - Vinland Saga - Monster", count: "1.203", img: "https://m.media-amazon.com/images/I/71d+K1X-KLL._AC_SL1500_.jpg" },
-  { key: "ghibli", tipo: "Arco de Nostalgia", nombre: "Studio Ghibli", desc: "Totoro - Chihiro - Howl - Mononoke", count: "856", img: "https://m.media-amazon.com/images/I/71IyK8KQjIL._AC_SL1500_.jpg" },
-  { key: "isekai", tipo: "Arco de Portal", nombre: "Isekai", desc: "Re:Zero - Shield Hero - Overlord - Konosuba", count: "1.564", img: "https://m.media-amazon.com/images/I/61+0B+Kz4aL._AC_SL1000_.jpg" },
+/* ═══════════════════════════════════════════════════════════
+   PRODUCT DATA
+   ═══════════════════════════════════════════════════════════ */
+const productos = [
+  { name: "Tanjiro Kamado", price: "89.99€", sprite: "tanjiro", tag: "¡Nuevo!" },
+  { name: "Nezuko Kamado", price: "79.99€", sprite: "nezuko", tag: "Hot" },
+  { name: "Goku SSJ", price: "99.99€", sprite: "goku", tag: "" },
+  { name: "Monkey D. Luffy", price: "69.99€", sprite: "luffy", tag: "" },
+  { name: "Sakura Haruno", price: "59.99€", sprite: "sakura", tag: "Sale" },
+  { name: "Rem", price: "84.99€", sprite: "rem", tag: "¡Nuevo!" },
 ];
 
-function Colecciones() {
-  return (
-    <section className="colecciones" id="colecciones">
-      <div className="section-header scroll-reveal">
-        <p className="caption">Capitulo 3 - Los Arcos</p>
-        <h2 className="heading">Elige tu mision</h2>
-        <p className="section-desc">Cada coleccion es un arco argumental. Cual es el tuyo?</p>
-      </div>
-      <div className="arcos-grid">
-        {ARCOS.map(arco => (
-          <a href="#" key={arco.key} className="arco">
-            <div className="arco-visual">
-              <Image src={arco.img} alt={arco.nombre} fill style={{ objectFit: "cover" }} className="arco-img" />
-              <div className="arco-overlay" />
-            </div>
-            <div className="arco-info">
-              <span className="arco-tipo">{arco.tipo}</span>
-              <h3 className="arco-nombre">{arco.nombre}</h3>
-              <p className="arco-desc">{arco.desc}</p>
-              <span className="arco-count">{arco.count} productos</span>
-            </div>
-          </a>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   TESTIMONIOS
-   ═══════════════════════════════════════════════════════════════ */
-const TESTIMONIOS = [
-  { avatar: "AK", nombre: "Akira_Tanaka", nivel: 8.7, rating: 5, texto: "Compre el figure de Tanjiro y ahora mi escritorio tiene mas personalidad que yo. Mi madre pregunto si estaba bien. Le dije que si. No lo estoy.", producto: "Figura Tanjiro Kamado - Hashira Form", precio: "89.99", hue: 320 },
-  { avatar: "YM", nombre: "Yuki_Moon", nivel: 9.2, rating: 5, texto: "Pedi el box set de Naruto y llego en 24h. La caja estaba perfecta. Llore un poco. No me arrepiento.", producto: "Manga Box Set Naruto Vol. 1-27", precio: "199.99", hue: 180 },
-  { avatar: "KR", nombre: "Kai_Ryu", nivel: 7.5, rating: 4, texto: "La chaqueta de Survey Corps es LEGIT. La llevo a la oficina y mis companeros no entienden. No necesitan entender.", producto: "Chaqueta Survey Corps - Oficial", precio: "59.99", hue: 260 },
-  { avatar: "SN", nombre: "Sora_Nakamura", nivel: 9.8, rating: 5, texto: "Mi coleccion de figuras ya supera los 200. Mi pareja dice que tengo un problema. Tiene razon. No me importa.", producto: "Gojo Satoru - Six Eyes", precio: "149.99", hue: 40 },
+const mangas = [
+  { name: "One Piece", count: "Vol. 1-106", price: "Desde 7.99€" },
+  { name: "Naruto", count: "Vol. 1-72", price: "Desde 6.99€" },
+  { name: "Dragon Ball", count: "Vol. 1-42", price: "Desde 8.99€" },
+  { name: "Jujutsu Kaisen", count: "Vol. 1-24", price: "Desde 9.99€" },
+  { name: "Chainsaw Man", count: "Vol. 1-15", price: "Desde 9.99€" },
+  { name: "Spy x Family", count: "Vol. 1-12", price: "Desde 8.49€" },
 ];
 
-function Testimonios() {
-  return (
-    <section className="testimonios" id="testimonios">
-      <div className="section-header scroll-reveal">
-        <p className="caption">Capitulo 4 - Los Testimonios</p>
-        <h2 className="heading">Confesiones<br />de otakus</h2>
-      </div>
-      <div className="testimonios-grid">
-        {TESTIMONIOS.map((t, i) => (
-          <article key={i} className="testimonio scroll-reveal" style={{ "--delay": (i * 0.15) + "s" }}>
-            <div className="testimonio-header">
-              <div className="avatar" style={{ "--hue": t.hue }}>{t.avatar}</div>
-              <div className="autor-info">
-                <span className="autor-nombre">{t.nombre}</span>
-                <span className="autor-nivel">Nivel de otaku: {t.nivel}</span>
-              </div>
-              <div className="rating">{"*".repeat(t.rating)}{"-".repeat(5 - t.rating)}</div>
-            </div>
-            <blockquote className="testimonio-texto">&ldquo;{t.texto}&rdquo;</blockquote>
-            <div className="testimonio-producto">
-              <span className="producto-ref">{t.producto}</span>
-              <span className="producto-precio">{t.precio} EUR</span>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   CTA FINAL
-   ═══════════════════════════════════════════════════════════════ */
-function CTAFinal() {
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
-  const handleSubmit = (e) => { e.preventDefault(); setSubmitted(true); };
-
-  return (
-    <section className="cta-final" id="mision">
-      <div className="cta-final-content scroll-reveal">
-        <p className="caption">Capitulo 5 - La Mision</p>
-        <h2 className="heading">Cual es tu mision?</h2>
-        <p className="cta-final-desc">Dinos que buscas y te encontramos el producto perfecto. Como un sensei encuentra al alumno correcto.</p>
-
-        {submitted ? (
-          <div className="mision-success">
-            <div className="mision-success-icon">M</div>
-            <h3 className="mision-success-title">Mision aceptada!</h3>
-            <p className="mision-success-text">Te contactaremos con los mejores productos para tu arco argumental. Preparate, otaku.</p>
-          </div>
-        ) : (
-          <form className="cta-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Que tipo de producto buscas?</label>
-              <div className="form-options">
-                {[{ value: "figura", icon: "F", label: "Figuras" }, { value: "manga", icon: "M", label: "Mangas" }, { value: "merch", icon: "m", label: "Merch" }, { value: "ropa", icon: "R", label: "Ropa" }].map(opt => (
-                  <button key={opt.value} type="button" className={"option " + (selectedOption === opt.value ? "selected" : "")} onClick={() => setSelectedOption(opt.value)}>
-                    <span className="option-icon">{opt.icon}</span><span>{opt.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Cual es tu anime favorito?</label>
-              <input type="text" className="form-input" placeholder="Ej: One Piece, Demon Slayer, Naruto..." />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Tu email</label>
-              <input type="email" className="form-input" placeholder="tu@email.com" required />
-            </div>
-            <button type="submit" className="cta-primary" style={{ width: "100%", justifyContent: "center" }}>
-              <span>Encontrar mi producto</span>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-          </form>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   FOOTER
-   ═══════════════════════════════════════════════════════════════ */
-function Footer() {
-  return (
-    <footer className="footer">
-      <div className="footer-content">
-        <div className="footer-brand">
-          <span className="brand-name">AKIRAMART</span>
-          <span className="brand-tagline">El otro mundo es este mundo</span>
-        </div>
-        <div className="footer-links">
-          <div className="link-group">
-            <h4>Mercado</h4>
-            <a href="#">Figuras</a><a href="#">Mangas</a><a href="#">Merch</a><a href="#">Ropa</a>
-          </div>
-          <div className="link-group">
-            <h4>Arcos</h4>
-            <a href="#">Shonen</a><a href="#">Seinen</a><a href="#">Ghibli</a><a href="#">Isekai</a>
-          </div>
-          <div className="link-group">
-            <h4>Info</h4>
-            <a href="#">Sobre nosotros</a><a href="#">Envios</a><a href="#">Devoluciones</a><a href="#">Contacto</a>
-          </div>
-        </div>
-      </div>
-      <div className="footer-bottom">
-        <p className="copyright">2026 AKIRAMART - Hecho con amor en Akihabara</p>
-      </div>
-    </footer>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   SCROLL REVEAL
-   ═══════════════════════════════════════════════════════════════ */
-function ScrollReveal() {
+/* ═══════════════════════════════════════════════════════════
+   MAIN PAGE
+   ═══════════════════════════════════════════════════════════ */
+export default function Home() {
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => { entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add("visible"); }); },
-      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) entry.target.classList.add("visible");
+        });
+      },
+      { threshold: 0.1 }
     );
-    const els = document.querySelectorAll(".scroll-reveal");
-    els.forEach(el => observer.observe(el));
-    setTimeout(() => { els.forEach(el => { if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add("visible"); }); }, 100);
+    document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, []);
-  return null;
-}
 
-/* ═══════════════════════════════════════════════════════════════
-   MAIN PAGE
-   ═══════════════════════════════════════════════════════════════ */
-export default function Home() {
   return (
-    <>
-      <CursorTrail />
-      <ScrollReveal />
-      <Navbar />
-      <Hero />
-      <Mercado />
-      <Colecciones />
-      <Testimonios />
-      <CTAFinal />
-      <Footer />
-    </>
+    <main>
+      {/* HERO */}
+      <section className="hero">
+        <div className="door-frame">
+          <div className="door">
+            <div className="door-sign">Entra, no muerdo</div>
+            <div className="door-knock"></div>
+          </div>
+          <div className="door-light"></div>
+        </div>
+        <div className="hero-content">
+          <p className="caption">+10.000 cosas que necesitas</p>
+          <h1 className="display">La estantería<br />de tu vecino otaku</h1>
+          <p className="body-text">Figuras. Mangas. Merch. Ese thing que no sabías que existías pero que ahora necesitas.</p>
+          <a href="#estanteria" className="cta">Echar un vistazo →</a>
+        </div>
+      </section>
+
+      {/* ESTANTERÍA */}
+      <section className="estanteria" id="estanteria">
+        <div className="section-header reveal">
+          <p className="caption">Balda 1 — Figuras</p>
+          <h2 className="heading">Cada figura tiene historia</h2>
+        </div>
+        <div className="shelf">
+          <div className="shelf-row reveal">
+            <div className="shelf-board"></div>
+            <div className="shelf-items">
+              {productos.map((prod) => (
+                <div key={prod.name} className="producto">
+                  <div className="producto-foto">
+                    <PixelSprite type={prod.sprite} size={120} />
+                  </div>
+                  {prod.tag && <div className="producto-sticky">{prod.tag}</div>}
+                  <div className="producto-info">
+                    <span className="producto-nombre">{prod.name}</span>
+                    <span className="producto-precio">{prod.price}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SUELO */}
+      <section className="suelo" id="mangas">
+        <div className="section-header reveal">
+          <p className="caption">El suelo — Mangas apilados</p>
+          <h2 className="heading">Pilas de cosas buenas</h2>
+        </div>
+        <div className="manga-pilas">
+          {mangas.map((manga, i) => (
+            <div key={manga.name} className="manga-pila reveal" style={{ transitionDelay: `${i * 0.1}s` }}>
+              <div className="pila-stack">
+                {[0,1,2,3,4].map((j) => (
+                  <div key={j} className="manga" style={{ "--rotate": `${(j - 2) * 1.5}deg` } as React.CSSProperties} />
+                ))}
+              </div>
+              <div className="pila-info">
+                <span className="pila-nombre">{manga.name}</span>
+                <span className="pila-count">{manga.count}</span>
+                <span className="pila-precio">{manga.price}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ESCRITORIO */}
+      <section className="escritorio" id="checkout">
+        <div className="section-header reveal">
+          <p className="caption">El escritorio — Tu carrito</p>
+          <h2 className="heading">Tu ticket de compra</h2>
+        </div>
+        <div className="desk-surface reveal">
+          <div className="keyboard">
+            <div className="key-row">{["Q","W","E","R","T","Y"].map(k => <span key={k} className="key">{k}</span>)}</div>
+            <div className="key-row">{["A","S","D","F","G","H"].map(k => <span key={k} className="key">{k}</span>)}</div>
+          </div>
+          <div className="coffee-mug">
+            <div className="mug-steam"></div>
+            <span className="mug-text">お疲れ様</span>
+          </div>
+          <div className="ticket">
+            <div className="ticket-header">
+              <span className="ticket-title">Mi carrito</span>
+              <span className="ticket-count">3 cosas</span>
+            </div>
+            <div className="ticket-items">
+              <div className="ticket-item"><span>Tanjiro Figure</span><span>89.99€</span></div>
+              <div className="ticket-item"><span>One Piece Vol. 106</span><span>7.99€</span></div>
+              <div className="ticket-item"><span>Body Pillow — Rem</span><span>45.99€</span></div>
+            </div>
+            <div className="ticket-total"><span>Total</span><span>143.97€</span></div>
+            <button className="ticket-cta">Comprar antes de que se agoten</button>
+          </div>
+        </div>
+      </section>
+
+      <footer className="footer">
+        <p className="footer-text">AKIRAMART — La estantería de tu vecino otaku — 2026</p>
+      </footer>
+    </main>
   );
 }
